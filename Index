@@ -1,0 +1,569 @@
+<!-- Chosen Palette: Warm Neutrals & Blues -->
+<!-- Application Structure Plan: S'ha dissenyat una plataforma d'aprenentatge (SPA) amb una estructura de "sidebar" (navegació lateral) i "content area" (àrea de contingut). La "sidebar" conté la llista de capítols, actuant com a navegació principal. En fer clic a un capítol, el contingut principal s'actualitza dinàmicament amb la lliçó i un exercici interactiu. Aquesta estructura és altament intuïtiva per a contingut educatiu, ja que imita les plataformes de cursos online i permet a l'usuari veure sempre el seu progrés i navegar fàcilment entre seccions. La informació (lliçons, exercicis) es desa en un array d'objectes JS per separar el contingut de la presentació. -->
+<!-- Visualization & Content Choices: Informació: Lliçons de guitarra (parts, acords, ritme). Objectiu: Ensenyar conceptes i validar-los amb exercicis. Mètode de Presentació: S'utilitza text, llistes i diagrames d'acords fets amb HTML/CSS (divs i grid) per evitar SVG. Interacció: L'exercici de cada capítol és interactiu. S'inclouen "quizzes" (botons de ràdio) amb validació instantània i "tasques pràctiques" (checkboxes) per fomentar l'aprenentatge actiu. La navegació és la interacció principal, on `onclick` als capítols dispara l'actualització del contingut. Justificació: Aquesta combinació de lliçons estàtiques (text/diagrames) i exercicis interactius (quiz/tasca) és un mètode pedagògic provat. Els diagrames en HTML/CSS són una solució robusta i escalable. Mètode/Biblioteca: Vanilla JavaScript per a la gestió de l'estat (capítol actual), renderització de contingut i lògica dels exercicis. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>Curs de Guitarra Acústica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estil per al diagrama d'acords */
+        .chord-diagram {
+            display: grid;
+            grid-template-columns: repeat(6, 20px);
+            grid-template-rows: auto repeat(4, 20px);
+            gap: 2px;
+            background-color: #fff;
+            border: 2px solid #333;
+            width: 134px; /* (6 * 20px) + (5 * 2px) + 2*2px border -> Corregit de 124px */
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .chord-nut {
+            grid-column: 1 / -1;
+            height: 8px;
+            background-color: #333;
+        }
+        .chord-string {
+            font-size: 0.75rem;
+            text-align: center;
+            color: #555;
+            font-weight: 600;
+        }
+        .chord-fret {
+            background-color: #eee;
+            border-right: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            position: relative;
+        }
+        .chord-fret:nth-child(6n) { border-right: none; }
+        .finger-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background-color: #222;
+            color: white;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            line-height: 16px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .open-string {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            border: 2px solid #222;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            line-height: 10px;
+            text-align: center;
+        }
+        
+        /* Estil per al capítol actiu */
+        .chapter-item.active {
+            background-color: #e0f2fe; /* light-blue-100 */
+            color: #0c4a6e; /* cyan-800 */
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex">
+
+    <!-- Navegació Lateral (Sidebar) -->
+    <aside class="w-full md:w-72 bg-white shadow-lg h-full overflow-y-auto">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold text-blue-800">Guitarra de Zero</h1>
+            <p class="text-sm text-gray-600">El teu curs d'acústica</p>
+        </div>
+        <nav>
+            <ul id="chapter-list" class="space-y-1 p-3">
+                <!-- Els capítols es generaran aquí amb JS -->
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Àrea de Contingut Principal -->
+    <main class="flex-1 p-6 md:p-10 h-full overflow-y-auto">
+        <div class="bg-white p-8 rounded-xl shadow-md max-w-4xl mx-auto">
+            
+            <!-- Títol de la Lliçó -->
+            <h2 id="lesson-title" class="text-4xl font-bold text-gray-800 mb-6"></h2>
+            
+            <!-- Cos de la Lliçó -->
+            <div id="lesson-body" class="prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                <!-- El contingut de la lliçó es generarà aquí -->
+            </div>
+            
+            <!-- Secció d'Exercici -->
+            <hr class="my-10 border-gray-200">
+            <div id="ai-quiz-section">
+                <h3 class="text-2xl font-semibold text-purple-700 mb-4">Exercici d'IA ✨</h3>
+                <p class="text-gray-600 mb-5">Posa a prova el que has après. L'IA generarà una pregunta basada en la lliçó actual.</p>
+                <button id="generate-question-btn" class="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition duration-300 shadow-md">
+                    Genera Nova Pregunta
+                </button>
+
+                <div id="quiz-loading" class="text-center p-4 hidden">
+                    <p class="text-purple-700">Creant pregunta... si us plau, espera.</p>
+                    <div class="mt-2 w-6 h-6 border-4 border-purple-300 border-t-purple-700 rounded-full animate-spin mx-auto"></div>
+                </div>
+
+                <!-- Contenidor del Quiz Generat -->
+                <div id="quiz-container" class="mt-6 hidden">
+                    <p id="quiz-question" class="text-lg font-semibold text-gray-800 mb-4"></p>
+                    <div id="quiz-options" class="space-y-2">
+                        <!-- Les opcions es generaran aquí -->
+                    </div>
+                    <button id="check-answer-btn" class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Comprovar</button>
+                </div>
+                
+                <div id="quiz-feedback" class="mt-4 p-4 rounded-lg hidden"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- Base de Dades del Curs ---
+        const courseData = [
+            {
+                title: "1. Parts de la Guitarra",
+                lesson: `
+                    <p>Benvingut/da al curs! Abans de tocar, hem de conèixer la nostra eina.</p>
+                    <p>La guitarra acústica té diverses parts principals que has de conèixer:</p>
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li><strong>El Cos:</strong> La part gran de fusta amb una 'boca' (forat) rodona que amplifica el so de les cordes.</li>
+                        <li><strong>El Mànec:</strong> La part llarga on poses els dits de la mà esquerra (si ets dretà).</li>
+                        <li><strong>Trasts (Frets):</strong> Les barres metàl·liques incrustades al mànec. Cada espai entre trasts és una nota diferent.</li>
+                        <li><strong>El Claviller (Headstock):</strong> Al final del mànec, on hi ha les <strong>clavilles d'afinació</strong> que s'utilitzen per tensar o afluixar les cordes i canviar la seva afinació.</li>
+                        <li><strong>El Pont (Bridge):</strong> On les cordes s'uneixen al cos de la guitarra.</li>
+                        <li><strong>Cordes:</strong> Les 6 cordes que produeixen el so en vibrar.</li>
+                    </ul>
+                `
+            },
+            {
+                title: "2. Noms de les Cordes (Afinació)",
+                lesson: `
+                    <p>La guitarra té 6 cordes. Es numeren de la més fina (1a) a la més gruixuda (6a).</p>
+                    <p>L'afinació estàndard, que farem servir sempre, dona a cada corda un nom de nota musical. Començant per la més gruixuda (la 6a, la que tens més a prop del sostre) els noms són:</p>
+                    <ul class="list-disc list-inside space-y-2 mt-4 text-lg font-semibold">
+                        <li><strong>E</strong> (Mi) - 6a corda (la més gruixuda)</li>
+                        <li><strong>A</strong> (La) - 5a corda</li>
+                        <li><strong>D</strong> (Re) - 4a corda</li>
+                        <li><strong>G</strong> (Sol) - 3a corda</li>
+                        <li><strong>B</strong> (Si) - 2a corda</li>
+                        <li><strong>e</strong> (mi) - 1a corda (la més fina)</li>
+                    </ul>
+                    <p class="mt-4">Per què aquests noms? És la "convenció" de segles de música occidental. L'important és memoritzar-los. Un truc mnemotècnic famós (en català) podria ser:</p>
+                    <p class="mt-2 italic font-medium">"<strong>E</strong>ls <strong>A</strong>ns <strong>D</strong>'en <strong>G</strong>anxet <strong>B</strong>allen <strong>E</strong>nganxats"</p>
+                    <p class="mt-2">Necessitaràs un afinador (una app al mòbil és perfecte) per assegurar-te que cada corda sona amb la seva nota correcta.</p>
+                `
+            },
+            {
+                title: "3. Com Llegir Diagrames d'Acords",
+                lesson: `
+                    <p>Un <strong>acord</strong> és un conjunt de 3 o més notes que sonen bé juntes. Per saber com posar els dits, fem servir <strong>diagrames d'acords</strong>.</p>
+                    <p>Imagina que mires el mànec de la guitarra posat de peu:</p>
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li>Les 6 línies verticals són les <strong>cordes</strong> (la 6a 'E' a l'esquerra, la 1a 'e' a la dreta).</li>
+                        <li>Les línies horitzontals són els <strong>trasts</strong>. La barra gruixuda de dalt (nut) és el trast 0.</li>
+                        <li>Els <strong>punts negres</strong> t'indiquen on posar els dits. El número dins del punt indica quin dit fer servir (1=índex, 2=cor, 3=anular, 4=petit).</li>
+                        <li>Una <strong>'O'</strong> sobre una corda significa tocar-la "a l'aire" (oberta, sense prémer).</li>
+                        <li>Una <strong>'X'</strong> sobre una corda significa que NO l'has de tocar (l'has de silenciar o evitar).</li>
+                    </ul>
+                `
+            },
+            {
+                title: "4. Acord 1: Mi menor (Em)",
+                lesson: `
+                    <p>Començarem amb un dels acords més fàcils i que sona millor: <strong>Mi menor (Em)</strong>.</p>
+                    <p>Només necessita dos dits i es toquen totes les 6 cordes!</p>
+                    
+                    <!-- Diagrama d'Acord: Em -->
+                    <div class="flex flex-col items-center my-4">
+                        <span class="font-bold text-lg mb-2">Mi menor (Em)</span>
+                        <div class="chord-diagram">
+                            <div class="chord-string">E</div><div class="chord-string">A</div><div class="chord-string">D</div><div class="chord-string">G</div><div class="chord-string">B</div><div class="chord-string">e</div>
+                            <div class="chord-nut"></div>
+                            <div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"><div class="open-string"></div></div>
+                            <div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">2</div></div><div class="chord-fret"><div class="finger-dot">3</div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li>Posa el teu <strong>dit 2 (cor)</strong> al segon trast de la 5a corda (corda La).</li>
+                        <li>Posa el teu <strong>dit 3 (anular)</strong> al segon trast de la 4a corda (corda Re).</li>
+                        <li>Assegura't de prémer just darrere del trast i que els dits estiguin "arquejats" (com una urpa) per no tocar les altres cordes.</li>
+                        <li>Toca totes les 6 cordes. Ha de sonar ple i ric!</li>
+                    </ul>
+                `
+            },
+            {
+                title: "5. Acord 2: Do Major (C)",
+                lesson: `
+                    <p>El <strong>Do Major (C)</strong> és un dels acords més importants. És una mica més complicat perquè els dits s'estiren per 3 trasts.</p>
+                    <p>Tingues paciència, és normal que al principi costi!</p>
+                    
+                    <!-- Diagrama d'Acord: C -->
+                    <div class="flex flex-col items-center my-4">
+                        <span class="font-bold text-lg mb-2">Do Major (C)</span>
+                        <div class="chord-diagram">
+                            <div class="chord-string">E</div><div class="chord-string">A</div><div class="chord-string">D</div><div class="chord-string">G</div><div class="chord-string">B</div><div class="chord-string">e</div>
+                            <div class="chord-nut"></div>
+                            <div class="chord-fret" style="color: #555; text-align:center; font-weight: 600;">X</div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"><div class="finger-dot">1</div></div><div class="chord-fret"><div class="open-string"></div></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">2</div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">3</div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li><strong>Dit 1 (índex)</strong>: 1r trast de la 2a corda (Si).</li>
+                        <li><strong>Dit 2 (cor)</strong>: 2n trast de la 4a corda (Re).</li>
+                        <li><strong>Dit 3 (anular)</strong>: 3r trast de la 5a corda (La).</li>
+                        <li><strong>IMPORTANT:</strong> La 6a corda (Mi greu) no es toca. La pots silenciar suaument amb la punta del dit 3. La 3a (Sol) i la 1a (mi) es toquen a l'aire.</li>
+                    </ul>
+                `
+            },
+            {
+                title: "6. Canvi d'Acords: Em ↔ C",
+                lesson: `
+                    <p>La música no és un sol acord. La part més important és <strong>canviar</strong> entre acords de manera fluida.</p>
+                    <p>Ara practicarem el canvi entre <strong>Em</strong> i <strong>C</strong>. Aquest és un canvi molt comú.</p>
+                    <p>El secret és la <strong>memòria muscular</strong>. Cal repetir-ho molt lentament fins que els dits sàpiguen on anar sense pensar-hi.</p>
+                    <ol class="list-decimal list-inside space-y-2 mt-4">
+                        <li>Forma l'acord Em. Rasca 4 vegades (↓ ↓ ↓ ↓).</li>
+                        <li>Aixeca els dits i forma l'acord C. Intenta moure tots els dits a la vegada, com una "forma" que aterra a les cordes.</li>
+                        <li>Forma l'acord C. Rasca 4 vegades (↓ ↓ ↓ ↓).</li>
+                        <li>Repeteix. Molt. Lentament.</li>
+                    </ol>
+                    <p class="mt-4">El teu objectiu és que no hi hagi silenci entre els canvis. Al principi n'hi haurà, és normal. La clau és la constància!</p>
+                `
+            },
+            {
+                title: "7. Acord 3: Sol Major (G)",
+                lesson: `
+                    <p>El <strong>Sol Major (G)</strong> és un altre pilar de la música pop i folk. Farem servir la versió més comuna.</p>
+                    <p>Aquest acord fa servir 3 dits i sona molt ple, ja que es toquen les 6 cordes.</p>
+                    
+                    <!-- Diagrama d'Acord: G -->
+                    <div class="flex flex-col items-center my-4">
+                        <span class="font-bold text-lg mb-2">Sol Major (G)</span>
+                        <div class="chord-diagram">
+                            <div class="chord-string">E</div><div class="chord-string">A</div><div class="chord-string">D</div><div class="chord-string">G</div><div class="chord-string">B</div><div class="chord-string">e</div>
+                            <div class="chord-nut"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">2</div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"><div class="finger-dot">3</div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">4</div></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li><strong>Dit 2 (cor)</strong>: 2n trast de la 5a corda (La).</li>
+                        <li><strong>Dit 3 (anular)</strong>: 3r trast de la 6a corda (Mi greu).</li>
+                        <li><strong>Dit 4 (petit)</strong>: 3r trast de la 1a corda (Mi aguda).</li>
+                        <li>Les cordes 4a (Re), 3a (Sol) i 2a (Si) es toquen a l'aire. Toca les 6 cordes. Ha de sonar brillant i feliç!</li>
+                    </ul>
+                `
+            },
+            {
+                title: "8. Acord 4: Re Major (D)",
+                lesson: `
+                    <p>L'últim dels "4 grans" acords per a principiants: el <strong>Re Major (D)</strong>.</p>
+                    <p>Aquest acord és una petita forma de triangle que es posa a les cordes més fines.</p>
+                    
+                    <!-- Diagrama d'Acord: D -->
+                    <div class="flex flex-col items-center my-4">
+                        <span class="font-bold text-lg mb-2">Re Major (D)</span>
+                        <div class="chord-diagram">
+                            <div class="chord-string">E</div><div class="chord-string">A</div><div class="chord-string">D</div><div class="chord-string">G</div><div class="chord-string">B</div><div class="chord-string">e</div>
+                            <div class="chord-nut"></div>
+                            <div class="chord-fret" style="color: #555; text-align:center; font-weight: 600;">X</div><div class="chord-fret" style="color: #555; text-align:center; font-weight: 600;">X</div><div class="chord-fret"><div class="open-string"></div></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">1</div></div><div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">2</div></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"><div class="finger-dot">3</div></div><div class="chord-fret"></div>
+                            <div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div><div class="chord-fret"></div>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li><strong>Dit 1 (índex)</strong>: 2n trast de la 3a corda (Sol).</li>
+                        <li><strong>Dit 2 (cor)</strong>: 2n trast de la 1a corda (mi).</li>
+                        <li><strong>Dit 3 (anular)</strong>: 3r trast de la 2a corda (Si).</li>
+                        <li><strong>IMPORTANT:</strong> Només es toquen les 4 cordes de baix (D, G, B, e). Les cordes 6a (E) i 5a (A) NO s'han de tocar.</li>
+                    </ul>
+                `
+            },
+            {
+                title: "9. Ritme i Rascat Bàsic",
+                lesson: `
+                    <p>Tenir els acords és només la meitat de la feina. Ara hem de donar-los ritme!</p>
+                    <p>La majoria de música popular està en compàs de 4/4. Això vol dir que comptem "1, 2, 3, 4" una vegada i una altra.</p>
+                    <p>El 'rascat' (strumming) es fa amb la mà dreta. Farem servir aquests símbols:</p>
+                    <ul class="list-disc list-inside space-y-2 mt-4">
+                        <li><strong>↓</strong> : Rascat cap avall (de la corda més gruixuda a la més fina).</li>
+                        <li><strong>↑</strong> : Rascat cap amunt (de la corda més fina a la més gruixuda).</li>
+                    </ul>
+                    <p class="mt-4"><strong>Exercici 1 (El tren):</strong> Posa l'acord Em. Practica un rascat simple només cap avall, un per cada temps. Compta en veu alta:</p>
+                    <p class="text-lg font-mono tracking-widest text-center my-4">↓        ↓        ↓        ↓<br>1        2        3        4</p>
+                    
+                    <p class="mt-4"><strong>Exercici 2 (El patró Pop-Rock):</strong> Aquest és el patró de rascat més famós. Dura un compàs (4 temps). Els "i" són els contratemps.</p>
+                    <p class="text-lg font-mono tracking-widest text-center my-4">
+                        <strong>↓</strong>        <strong>↓</strong>        <strong>↑</strong>        <strong>↑</strong>        <strong>↓</strong>        <strong>↑</strong><br>
+                        <strong>1</strong>   i    <strong>2</strong>   i    <strong>3</strong>   i    <strong>4</strong>   i
+                    </p>
+                    <p>Practica'l lentament amb l'acord Em. "Avall... Avall-Amunt... Amunt-Avall-Amunt". La mà dreta ha de moure's constantment amunt i avall, encara que no toquis les cordes.</p>
+                `
+            },
+            {
+                title: "10. Cançó: 'Zombie' (The Cranberries)",
+                lesson: `
+                    <p>Estàs a punt! Anem a ajuntar-ho tot. 'Zombie' de The Cranberries és una cançó increïblement famosa que fa servir només els 4 acords que acabem d'aprendre:</p>
+                    <p class="text-2xl font-bold text-center my-6 text-purple-700">Em&nbsp;&nbsp;&nbsp; - &nbsp;&nbsp;&nbsp;C&nbsp;&nbsp;&nbsp; - &nbsp;&nbsp;&nbsp;G&nbsp;&nbsp;&nbsp; - &nbsp;&nbsp;&nbsp;D</p>
+                    <p>Aquesta és la progressió principal, es repeteix durant gairebé tota la cançó (estrofa i tornada).</p>
+                    <p><strong>Com practicar-ho:</strong></p>
+                    <ol class="list-decimal list-inside space-y-2 mt-4">
+                        <li><strong>Versió Fàcil (Ritme de Tren):</strong> Posa cada acord i fes 8 rascats cap avall (↓) per a cada un.
+                            <br><strong>Em</strong> (↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓) -> <strong>C</strong> (↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓) -> <strong>G</strong> (↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓) -> <strong>D</strong> (↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓)</li>
+                        <li><strong>Versió Intermèdia (Ritme Pop-Rock):</strong> Fes el patró de rascat (↓ ↓↑ ↑↓↑) dues vegades per a cada acord abans de canviar.</li>
+                    </ol>
+                    <p class="mt-4">Centra't en fer els canvis d'acord just a temps, al "1" del següent compàs. Felicitats, ja estàs tocant una cançó!</p>
+                `
+            }
+        ];
+
+        // --- Variables del DOM ---
+        const chapterList = document.getElementById('chapter-list');
+        const lessonTitle = document.getElementById('lesson-title');
+        const lessonBody = document.getElementById('lesson-body');
+
+        // --- Noves Variables del DOM per al Quiz d'IA ---
+        const generateQuestionBtn = document.getElementById('generate-question-btn');
+        const quizLoading = document.getElementById('quiz-loading');
+        const quizContainer = document.getElementById('quiz-container');
+        const quizQuestion = document.getElementById('quiz-question');
+        const quizOptions = document.getElementById('quiz-options');
+        const checkAnswerBtn = document.getElementById('check-answer-btn');
+        const quizFeedback = document.getElementById('quiz-feedback');
+
+        let currentChapterIndex = 0;
+        let currentCorrectAnswerIndex = null;
+        let quizOptionsData = [];
+
+        // --- Funcions de Renderització ---
+
+        function renderChapterList() {
+            chapterList.innerHTML = '';
+            courseData.forEach((chapter, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<button class="chapter-item w-full text-left px-5 py-3 rounded-lg transition-colors duration-200 hover:bg-gray-100 ${index === currentChapterIndex ? 'active' : ''}">
+                    ${chapter.title}
+                </button>`;
+                li.querySelector('button').onclick = () => selectChapter(index);
+                chapterList.appendChild(li);
+            });
+        }
+
+        function renderLesson(chapter) {
+            lessonTitle.textContent = chapter.title;
+            lessonBody.innerHTML = chapter.lesson;
+        }
+
+        // --- S'ha eliminat renderExercise() ---
+
+        // --- Funcions d'Interacció ---
+
+        function selectChapter(index) {
+            currentChapterIndex = index;
+            const chapter = courseData[index];
+            
+            renderChapterList();
+            renderLesson(chapter);
+            
+            // Resetejar la secció de Quiz d'IA
+            quizContainer.classList.add('hidden');
+            quizFeedback.classList.add('hidden');
+            quizLoading.classList.add('hidden');
+            
+            // Assignar el controlador per al botó de generació
+            generateQuestionBtn.onclick = () => handleGenerateQuestion(chapter.lesson);
+        }
+
+        // --- S'ha eliminat checkQuiz() ---
+
+        // --- Noves Funcions de Gemini API per al Quiz ---
+
+        const apiKey = ""; // No canviar, es proporciona en temps d'execució
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // Helper per a 'delay' en reintents
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Helper per treure HTML del text de la lliçó
+        function stripHtml(html) {
+            let doc = new DOMParser().parseFromString(html, 'text/html');
+            return doc.body.textContent || "";
+        }
+
+        async function callGeminiForQuiz(lessonText, maxRetries = 3) {
+            const prompt = `Basant-te en el següent text d'una lliçó de guitarra, genera una pregunta de test (multiple choice) en català. La pregunta ha de tenir 4 opcions i només una resposta correcta.
+
+Text de la lliçó:
+"${lessonText}"
+
+Genera la sortida estrictament en el format JSON especificat.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: "Actua com un professor de guitarra que crea exàmens. Respon en català. Només has de generar l'objecte JSON de sortida, sense cap text addicional." }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "question": { "type": "STRING" },
+                            "options": {
+                                "type": "ARRAY",
+                                "items": { "type": "STRING" }
+                            },
+                            "correctAnswerIndex": { "type": "INTEGER" }
+                        },
+                        required: ["question", "options", "correctAnswerIndex"]
+                    }
+                }
+            };
+
+            let attempts = 0;
+            while (attempts < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status >= 500) {
+                            throw new Error(`Server error: ${response.status}`);
+                        }
+                        const errorData = await response.json();
+                        return { error: `Error de l'API: ${errorData.error?.message || response.statusText}` };
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        const jsonText = candidate.content.parts[0].text;
+                        return JSON.parse(jsonText); // Retorna l'objecte JSON directament
+                    } else {
+                        return { error: "No s'ha pogut generar una pregunta." };
+                    }
+
+                } catch (error) {
+                    attempts++;
+                    if (attempts >= maxRetries) {
+                        return { error: `Error de xarxa després de ${attempts} intents: ${error.message}` };
+                    }
+                    const waitTime = Math.pow(2, attempts) * 1000; // 2s, 4s
+                    await delay(waitTime);
+                }
+            }
+            return { error: "S'ha superat el nombre màxim d'intents." };
+        }
+
+        function displayQuiz(quizData) {
+            quizQuestion.textContent = quizData.question;
+            quizOptions.innerHTML = '';
+            quizOptionsData = quizData.options; // Desa les dades per a la comprovació
+            
+            quizData.options.forEach((option, index) => {
+                quizOptions.innerHTML += `
+                    <label class="block p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input type="radio" name="quizOption" value="${index}" class="mr-2">
+                        ${option}
+                    </label>
+                `;
+            });
+            
+            currentCorrectAnswerIndex = quizData.correctAnswerIndex;
+            checkAnswerBtn.onclick = checkAnswer; // Assigna la funció de comprovació
+            quizContainer.classList.remove('hidden');
+        }
+
+        function displayQuizError(errorMsg) {
+            quizFeedback.textContent = errorMsg;
+            quizFeedback.className = 'mt-4 p-4 rounded-lg bg-red-100 text-red-800';
+            quizFeedback.classList.remove('hidden');
+        }
+        
+        async function handleGenerateQuestion(lessonHtml) {
+            quizLoading.classList.remove('hidden');
+            quizContainer.classList.add('hidden');
+            quizFeedback.classList.add('hidden');
+            
+            const lessonText = stripHtml(lessonHtml); // Neteja l'HTML
+            const result = await callGeminiForQuiz(lessonText);
+            
+            quizLoading.classList.add('hidden');
+
+            if (result.error) {
+                displayQuizError(result.error);
+            } else {
+                displayQuiz(result);
+            }
+        }
+        
+        function checkAnswer() {
+            const selectedOption = document.querySelector('input[name="quizOption"]:checked');
+            
+            if (!selectedOption) {
+                quizFeedback.textContent = 'Si us plau, selecciona una resposta.';
+                quizFeedback.className = 'mt-4 p-4 rounded-lg bg-yellow-100 text-yellow-800';
+                quizFeedback.classList.remove('hidden');
+                return;
+            }
+
+            const selectedIndex = parseInt(selectedOption.value);
+            const correctText = quizOptionsData[currentCorrectAnswerIndex];
+
+            if (selectedIndex === currentCorrectAnswerIndex) {
+                quizFeedback.textContent = 'Correcte! Molt bé.';
+                quizFeedback.className = 'mt-4 p-4 rounded-lg bg-green-100 text-green-800';
+            } else {
+                quizFeedback.textContent = `Incorrecte. La resposta correcta era: "${correctText}"`;
+                quizFeedback.className = 'mt-4 p-4 rounded-lg bg-red-100 text-red-800';
+            }
+            quizFeedback.classList.remove('hidden');
+        }
+
+        // --- Inicialització ---
+        function init() {
+            renderChapterList();
+            selectChapter(0);
+        }
+
+        init();
+    </script>
+</body>
+</html>
